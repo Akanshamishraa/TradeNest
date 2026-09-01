@@ -121,8 +121,17 @@ export const TradingViewChart: React.FC = () => {
           minBarSpacing: 4,
           rightOffset: 4,
         },
-        handleScroll: { mouseWheel: true, pressedMouseMove: true },
-        handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: true,
+          horzTouchDrag: true,
+          vertTouchDrag: false,
+        },
+        handleScale: {
+          axisPressedMouseMove: true,
+          mouseWheel: true,
+          pinch: true,
+        },
       });
 
       chartApiRef.current = chart;
@@ -268,8 +277,19 @@ export const TradingViewChart: React.FC = () => {
 
       window.addEventListener('resize', handleResize);
 
+      const resizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 0 && height > 0 && chartApiRef.current) {
+            chartApiRef.current.applyOptions({ width, height });
+          }
+        }
+      });
+      resizeObserver.observe(container);
+
       return () => {
         window.removeEventListener('resize', handleResize);
+        resizeObserver.disconnect();
         try {
           chart.remove();
         } catch (e) {
@@ -625,20 +645,20 @@ export const TradingViewChart: React.FC = () => {
 
         {/* Live OHLC Data Chips */}
         {hoveredOHLC && (
-          <div className="flex items-center gap-2 font-mono text-[11px] shrink-0 flex-wrap">
-            <span className="text-gray-400">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] shrink-0 flex-wrap">
+            <span className="text-gray-400 hidden sm:inline">
               O <strong className={isLight ? 'text-slate-900' : 'text-white'}>{hoveredOHLC.open.toFixed(2)}</strong>
             </span>
-            <span className="text-gray-400">
+            <span className="text-gray-400 hidden sm:inline">
               H <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{hoveredOHLC.high.toFixed(2)}</strong>
             </span>
-            <span className="text-gray-400">
+            <span className="text-gray-400 hidden sm:inline">
               L <strong className="text-rose-600 dark:text-rose-400 font-bold">{hoveredOHLC.low.toFixed(2)}</strong>
             </span>
             <span className="text-gray-400">
-              C <strong className={isLight ? 'text-slate-900' : 'text-white'}>{hoveredOHLC.close.toFixed(2)}</strong>
+              <span className="hidden sm:inline">C </span><strong className={isLight ? 'text-slate-900' : 'text-white'}>{activeStock.currency}{hoveredOHLC.close.toFixed(2)}</strong>
             </span>
-            <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
+            <span className={`px-1.5 py-0.2 rounded font-bold text-[9px] sm:text-[10px] ${
               hoveredOHLC.change >= 0
                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                 : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'

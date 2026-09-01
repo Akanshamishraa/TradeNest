@@ -114,8 +114,8 @@ export const TimeframeSelector: React.FC = () => {
         </div>
       </div>
 
-      {/* Right: Date Range Selector & Pop-out Chart */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      {/* Right: Date Range Selector & Pop-out Chart (Desktop / Tablet only) */}
+      <div className="hidden sm:flex items-center gap-2.5 shrink-0">
         {/* Direct Date - Date Input Boxes */}
         <div className={`flex items-center gap-1.5 ${isLight ? 'bg-slate-100 border-slate-300' : 'bg-[#131722] border-[#2a2e39]'} border rounded-md px-2 py-0.5 shadow-xs`}>
           <Calendar className="w-3 h-3 text-blue-500 shrink-0" />
