@@ -196,13 +196,12 @@ export const AuthPage: React.FC = () => {
           <button
             onClick={enterAsGuest}
             title="Enter directly as a guest trader"
-            className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center ${
               isLight
                 ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800 shadow-xs'
                 : 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Guest Demo</span>
             <span className="sm:hidden">Guest</span>
           </button>
@@ -597,14 +596,13 @@ export const AuthPage: React.FC = () => {
                   enterAsGuest();
                   setIsAuthModalOpen(false);
                 }}
-                className={`w-full py-2.5 rounded-xl border font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 active:scale-95 ${
+                className={`w-full py-2.5 rounded-xl border font-bold text-xs transition cursor-pointer flex items-center justify-center active:scale-95 ${
                   isLight
                     ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800'
                     : 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Continue as Guest Trader (No Password Needed)</span>
+                <span>Continue as Guest Trader</span>
               </button>
             </form>
           </div>
