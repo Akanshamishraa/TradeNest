@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-hover: #f1f5f9;
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --color-green: #089981;
+    --color-green-light: #26a69a;
+    --color-red: #f23645;
+    --color-red-light: #ef5350;
+    --color-blue: #2962ff;
+    --color-blue-hover: #1e53e5;
+  }
+
+  html.dark {
+    --bg-primary: #131722;
+    --bg-secondary: #1e222d;
+    --bg-card: #2a2e39;
+    --bg-hover: #363c4e;
+    --border-color: #2a2e39;
+    --text-primary: #d1d4dc;
+    --text-secondary: #787b86;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.light body {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  html.dark body {
+    background-color: #131722;
+    color: #d1d4dc;
+  }
+
+  #root {
+    height: 100%;
+    max-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 0px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: transparent;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #2a2e39;
+  border-radius: 3px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #363c4e;
+}
+
+/* Pulse animation for live price updates */
+@keyframes tick-up {
+  0% { background-color: rgba(8, 153, 129, 0.35); }
+  100% { background-color: transparent; }
+}
+
+@keyframes tick-down {
+  0% { background-color: rgba(242, 54, 69, 0.35); }
+  100% { background-color: transparent; }
+}
+
+.tick-flash-up {
+  animation: tick-up 0.5s ease-out;
+}
+
+.tick-flash-down {
+  animation: tick-down 0.5s ease-out;
+}
+
+/* Completely Hide TradingView Attribution Logo / Watermark */
+a[href*="tradingview.com"],
+a[href*="tradingview"],
+#tv-attr-logo,
+[class*="tv-lightweight-charts-logo"],
+[class*="attribution"],
+.tv-lightweight-charts-logo,
+a[title*="TradingView"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+
+
