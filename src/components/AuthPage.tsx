@@ -221,7 +221,7 @@ export const AuthPage: React.FC = () => {
       <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden z-10 min-h-0">
         
         {/* LEFT / CENTER HERO SECTION */}
-        <div className="flex-1 flex flex-col justify-between p-5 sm:p-8 lg:p-8 overflow-y-auto lg:overflow-hidden relative min-h-0">
+        <div className="w-full lg:flex-1 flex flex-col justify-start lg:justify-between p-4 sm:p-6 lg:p-8 shrink-0 lg:shrink lg:overflow-y-auto lg:overflow-hidden relative min-h-0">
           
           {/* Hero Content */}
           <div className="max-w-2xl mt-1 sm:mt-3">
@@ -271,7 +271,15 @@ export const AuthPage: React.FC = () => {
           </div>
 
           {/* AUTO-SCROLLING SQUARE NEWS INTELLIGENCE STREAM */}
-          <div className={`mt-4 pt-3 border-t ${isLight ? 'border-slate-200/80' : 'border-white/10'} shrink-0`}>
+          <div className={`mt-5 pt-3 border-t ${isLight ? 'border-slate-200/80' : 'border-white/10'} shrink-0`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-blue-700' : 'text-blue-400'} flex items-center gap-1.5`}>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Market Intelligence Stream
+              </span>
+              <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-400'} font-mono`}>Live Feed</span>
+            </div>
+
             {/* Horizontal Auto-Scrolling Container */}
             <div 
               ref={newsScrollRef}
@@ -328,7 +336,7 @@ export const AuthPage: React.FC = () => {
         </div>
 
         {/* RIGHT SIDEBAR: MARKET MOVERS & WATCHLIST RADAR */}
-        <aside className={`w-full lg:w-96 border-t lg:border-t-0 lg:border-l ${isLight ? 'bg-white/95 border-slate-200 shadow-xl' : 'bg-[#0f1422]/95 border-white/10'} backdrop-blur-xl flex flex-col shrink-0 h-full overflow-hidden transition-colors duration-300`}>
+        <aside className={`w-full lg:w-96 border-t lg:border-t-0 lg:border-l ${isLight ? 'bg-white/95 border-slate-200 shadow-xl' : 'bg-[#0f1422]/95 border-white/10'} backdrop-blur-xl flex flex-col shrink-0 lg:h-full transition-colors duration-300`}>
           
           {/* Header & Tabs */}
           <div className={`p-4 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
@@ -363,7 +371,7 @@ export const AuthPage: React.FC = () => {
           </div>
 
           {/* Rows */}
-          <div className={`flex-1 overflow-y-auto divide-y ${isLight ? 'divide-slate-100' : 'divide-white/5'} pr-1`}>
+          <div className={`max-h-[360px] lg:max-h-none lg:flex-1 overflow-y-auto divide-y ${isLight ? 'divide-slate-100' : 'divide-white/5'} pr-1`}>
             {filteredStocks.map(stock => {
               const isPos = stock.change >= 0;
               const isSelected = stock.symbol === selectedStockSymbol;
