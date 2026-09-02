@@ -10,13 +10,18 @@ const getYahooSymbol = (symbol) => {
   if (clean === 'NIFTYIT' || clean === 'NSE:NIFTYIT') return '^CNXIT';
 
   // Commodities & Forex mappings
-  if (clean === 'GOLD') return 'GC=F';
-  if (clean === 'CRUDEOIL' || clean === 'CRUDE') return 'CL=F';
-  if (clean === 'USDINR' || clean === 'USD/INR') return 'INR=X';
+  if (clean === 'GOLD' || clean === 'MCX:GOLD') return 'GC=F';
+  if (clean === 'CRUDEOIL' || clean === 'CRUDE' || clean === 'MCX:CRUDEOIL') return 'CL=F';
+  if (clean === 'USDINR' || clean === 'USD/INR' || clean === 'FX:USDINR') return 'INR=X';
+  if (clean.startsWith('MCX:')) return `${clean.replace('MCX:', '')}=F`;
+  if (clean.startsWith('FX:')) return `${clean.replace('FX:', '')}=X`;
 
   // Crypto mappings
-  if (clean === 'BTC' || clean === 'BITCOIN') return 'BTC-USD';
-  if (clean === 'ETH' || clean === 'ETHEREUM') return 'ETH-USD';
+  if (clean === 'BTC' || clean === 'BITCOIN' || clean === 'CRYPTO:BTC' || clean === 'BTC-USD') return 'BTC-USD';
+  if (clean === 'ETH' || clean === 'ETHEREUM' || clean === 'CRYPTO:ETH' || clean === 'ETH-USD') return 'ETH-USD';
+  if (clean.startsWith('CRYPTO:')) {
+    return `${clean.replace('CRYPTO:', '')}-USD`;
+  }
 
   // US Tech stocks
   const usStocks = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'AMZN', 'META'];

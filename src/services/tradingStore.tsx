@@ -81,6 +81,7 @@ interface TradingContextType {
   news: NewsArticle[];
   isLoadingNews: boolean;
   fetchNews: (category?: string) => Promise<void>;
+  isLoadingChartData: boolean;
 }
 
 export function checkMarketStatus(stock: Stock): { isOpen: boolean; label: string } {
@@ -381,6 +382,7 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   // Cropped View state
   const [croppedTimeframePreview, setCroppedTimeframePreview] = useState<{ active: boolean; label: string; candles: Candle[] } | null>(null);
+  const [isLoadingChartData, setIsLoadingChartData] = useState<boolean>(false);
 
   const toggleContinuousMode = () => {
     setIsContinuousMode(prev => !prev);
@@ -389,26 +391,8 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
   // Refresh historical candles whenever active stock, timeframe, continuous mode, or custom date range changes
   useEffect(() => {
     let isCancelled = false;
+    setIsLoadingChartData(true);
 
-    // 1. Immediate local render for instantaneous zero-latency response
-    setLatestPrice(activeStock.currentPrice);
-    let rawCandles = generateHistoricalCandles(
-      activeStock,
-      timeframe,
-      granularity,
-      isCustomRange ? startDate : undefined,
-      isCustomRange ? endDate : undefined
-    );
-
-    if (isContinuousMode) {
-      rawCandles = generateContinuousCandles(rawCandles);
-    }
-
-    setCandles(rawCandles);
-    const detectedSR = detectSupportResistanceLevels(rawCandles, activeStock.currentPrice);
-    setSupportResistanceLevels(detectedSR);
-
-    // 2. Fetch real live historical candles from Node.js Yahoo Finance Backend
     async function loadLiveBackendData() {
       try {
         const [liveCandles, liveQuote] = await Promise.all([
@@ -461,9 +445,26 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
           setCandles(finalCandles);
           const liveSR = detectSupportResistanceLevels(finalCandles, liveQuote?.price || activeStock.currentPrice);
           setSupportResistanceLevels(liveSR);
+        } else {
+          // If live API unavailable, use calibrated candles around latest price
+          let fallbackCandles = generateHistoricalCandles(
+            liveQuote ? { ...activeStock, currentPrice: liveQuote.price } : activeStock,
+            timeframe,
+            granularity,
+            isCustomRange ? startDate : undefined,
+            isCustomRange ? endDate : undefined
+          );
+          if (isContinuousMode) fallbackCandles = generateContinuousCandles(fallbackCandles);
+          setCandles(fallbackCandles);
+          const detectedSR = detectSupportResistanceLevels(fallbackCandles, liveQuote?.price || activeStock.currentPrice);
+          setSupportResistanceLevels(detectedSR);
         }
       } catch (e) {
-        // Fallback silently if offline
+        console.error('Error fetching real market data:', e);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingChartData(false);
+        }
       }
     }
 
@@ -793,7 +794,8 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
         enterAsGuest,
         news,
         isLoadingNews,
-        fetchNews
+        fetchNews,
+        isLoadingChartData
       }}
     >
       {children}

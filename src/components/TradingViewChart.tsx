@@ -11,6 +11,7 @@ import {
   IChartApi
 } from 'lightweight-charts';
 import { useTrading } from '../services/tradingStore';
+import { Loader2 } from 'lucide-react';
 import {
   calculateSMA,
   calculateEMA,
@@ -59,7 +60,8 @@ export const TradingViewChart: React.FC = () => {
     setActiveDrawingTool,
     addManualSRLevel,
     theme,
-    marketStatus
+    marketStatus,
+    isLoadingChartData
   } = useTrading();
 
   const activeDrawingToolRef = useRef<string>(activeDrawingTool);
@@ -711,6 +713,18 @@ export const TradingViewChart: React.FC = () => {
         <div className="absolute top-14 left-3 z-20 flex items-center gap-2 bg-slate-900/90 text-white text-xs font-mono px-3 py-1 rounded-lg shadow-md border border-slate-700/80 select-none">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
           <span>Click anywhere on chart to place {activeDrawingTool === 'horizontal_line' ? 'Horizontal Ray' : activeDrawingTool === 'resistance_line' ? 'Resistance' : 'Support'}</span>
+        </div>
+      )}
+
+      {/* Real-time Live API Data Loading Overlay */}
+      {isLoadingChartData && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/25 backdrop-blur-[1px] pointer-events-none transition-opacity">
+          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl ${
+            isLight ? 'bg-white/95 text-slate-800 border-slate-200' : 'bg-[#181c27]/95 text-white border-[#2a2e39]'
+          } border shadow-2xl text-xs font-semibold select-none`}>
+            <Loader2 className="w-4 h-4 animate-spin text-blue-500 shrink-0" />
+            <span>Fetching Live Market API Data ({activeStock.symbol})...</span>
+          </div>
         </div>
       )}
 
