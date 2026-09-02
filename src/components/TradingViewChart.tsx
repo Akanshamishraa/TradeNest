@@ -58,7 +58,8 @@ export const TradingViewChart: React.FC = () => {
     activeDrawingTool,
     setActiveDrawingTool,
     addManualSRLevel,
-    theme
+    theme,
+    marketStatus
   } = useTrading();
 
   const activeDrawingToolRef = useRef<string>(activeDrawingTool);
@@ -631,11 +632,18 @@ export const TradingViewChart: React.FC = () => {
       } border backdrop-blur-md px-3 py-1.5 rounded-lg max-w-[calc(100%-24px)] flex-wrap text-xs`}>
         {/* Symbol & Exchange Badge */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className={`w-2 h-2 rounded-full shrink-0 ${marketStatus.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+          <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded border shrink-0 ${
+            marketStatus.isOpen 
+              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+              : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+          }`}>
+            {marketStatus.label}
+          </span>
           <span className="font-extrabold tracking-wide font-mono px-1.5 py-0.5 rounded bg-blue-600/10 text-blue-600 dark:text-blue-400 text-[11px] border border-blue-500/20">
             {activeStock.symbol}
           </span>
-          <span className="font-bold text-xs truncate max-w-[140px] md:max-w-none">
+          <span className="font-bold text-xs truncate max-w-[130px] md:max-w-none">
             {activeStock.name}
           </span>
           <span className="text-[10px] text-gray-400 font-mono">({activeStock.exchange})</span>

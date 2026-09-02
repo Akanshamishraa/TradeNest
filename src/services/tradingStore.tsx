@@ -60,6 +60,7 @@ interface TradingContextType {
   setIsLiveStreaming: (live: boolean) => void;
   latestPrice: number;
   priceFlash: 'up' | 'down' | null;
+  marketStatus: { isOpen: boolean; label: string };
   // Cropped View Feature
   croppedTimeframePreview: { active: boolean; label: string; candles: Candle[] } | null;
   setCroppedTimeframePreview: (preview: { active: boolean; label: string; candles: Candle[] } | null) => void;
@@ -80,6 +81,53 @@ interface TradingContextType {
   news: NewsArticle[];
   isLoadingNews: boolean;
   fetchNews: (category?: string) => Promise<void>;
+}
+
+export function checkMarketStatus(stock: Stock): { isOpen: boolean; label: string } {
+  if (!stock) return { isOpen: false, label: 'Market Closed' };
+  if (stock.category === 'CRYPTO') {
+    return { isOpen: true, label: 'Live 24/7' };
+  }
+
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const istTime = new Date(utc + (3600000 * 5.5));
+  const istDay = istTime.getDay(); // 0 = Sun, 6 = Sat
+  const istMinutes = istTime.getHours() * 60 + istTime.getMinutes();
+
+  // Indian Markets: NSE / BSE (Mon-Fri 09:15 - 15:30 IST)
+  if (stock.exchange === 'NSE' || stock.exchange === 'BSE' || stock.category === 'INDIAN_BLUECHIPS' || stock.category === 'INDICES') {
+    if (istDay === 0 || istDay === 6) {
+      return { isOpen: false, label: 'Closed (Weekend)' };
+    }
+    if (istMinutes >= 555 && istMinutes <= 930) {
+      return { isOpen: true, label: 'Market Open' };
+    }
+    return { isOpen: false, label: 'Market Closed' };
+  }
+
+  // US Markets: NASDAQ / NYSE (Mon-Fri 09:30 - 16:00 EST -> 19:00 - 01:30 IST)
+  if (stock.exchange === 'NASDAQ' || stock.exchange === 'NYSE' || stock.category === 'US_TECH') {
+    const estTime = new Date(utc - (3600000 * 4));
+    const estDay = estTime.getDay();
+    const estMinutes = estTime.getHours() * 60 + estTime.getMinutes();
+    if (estDay === 0 || estDay === 6) {
+      return { isOpen: false, label: 'Closed (Weekend)' };
+    }
+    if (estMinutes >= 570 && estMinutes <= 960) {
+      return { isOpen: true, label: 'Market Open' };
+    }
+    return { isOpen: false, label: 'Market Closed' };
+  }
+
+  // Commodities: MCX / COMEX
+  if (stock.category === 'COMMODITIES') {
+    if (istDay === 0 || istDay === 6) return { isOpen: false, label: 'Closed (Weekend)' };
+    if (istMinutes >= 540 && istMinutes <= 1410) return { isOpen: true, label: 'Market Open' };
+    return { isOpen: false, label: 'Market Closed' };
+  }
+
+  return { isOpen: false, label: 'Market Closed' };
 }
 
 const TradingContext = createContext<TradingContextType | undefined>(undefined);
@@ -433,50 +481,41 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
     localStorage.setItem('tradenest_orders', JSON.stringify(orders));
   }, [balance, positions, orders]);
 
-  // Live price simulator tick
+  // Market status (Real exchange operating hours)
+  const marketStatus = useMemo(() => checkMarketStatus(activeStock), [activeStock]);
+
+  // Real market quote refresh (NO fake simulation - preserves static close price when closed)
   useEffect(() => {
-    if (!isLiveStreaming) return;
+    // If market is closed, DO NOT poll or change price — keep static closing amount!
+    if (!marketStatus.isOpen) return;
 
-    const interval = setInterval(() => {
-      setActiveStockState(prevStock => {
-        const volatility = 0.0012;
-        const deltaPercent = (Math.random() - 0.49) * volatility;
-        const newPrice = parseFloat((prevStock.currentPrice * (1 + deltaPercent)).toFixed(2));
-        const direction = newPrice >= prevStock.currentPrice ? 'up' : 'down';
+    const interval = setInterval(async () => {
+      try {
+        const liveQuote = await fetchLiveQuoteFromBackend(activeStock.symbol);
+        if (liveQuote && typeof liveQuote.price === 'number' && liveQuote.price > 0 && liveQuote.price !== latestPrice) {
+          const direction = liveQuote.price >= latestPrice ? 'up' : 'down';
+          setLatestPrice(liveQuote.price);
+          setPriceFlash(direction);
+          setTimeout(() => setPriceFlash(null), 600);
 
-        setLatestPrice(newPrice);
-        setPriceFlash(direction);
-        setTimeout(() => setPriceFlash(null), 400);
-
-        setCandles(prevCandles => {
-          if (prevCandles.length === 0) return prevCandles;
-          const lastIdx = prevCandles.length - 1;
-          const last = prevCandles[lastIdx];
-          const updatedLast: Candle = {
-            ...last,
-            close: newPrice,
-            high: Math.max(last.high, newPrice),
-            low: Math.min(last.low, newPrice),
-            volume: (last.volume || 1000) + Math.floor(Math.random() * 40)
-          };
-          const next = [...prevCandles];
-          next[lastIdx] = updatedLast;
-          return next;
-        });
-
-        return {
-          ...prevStock,
-          currentPrice: newPrice,
-          change: parseFloat((newPrice - prevStock.previousClose).toFixed(2)),
-          changePercent: parseFloat((((newPrice - prevStock.previousClose) / prevStock.previousClose) * 100).toFixed(2)),
-          high: Math.max(prevStock.high, newPrice),
-          low: Math.min(prevStock.low, newPrice)
-        };
-      });
-    }, 2500);
+          setActiveStockState(prev => ({
+            ...prev,
+            currentPrice: liveQuote.price,
+            change: liveQuote.change ?? prev.change,
+            changePercent: liveQuote.changePercent ?? prev.changePercent,
+            open: liveQuote.open ?? prev.open,
+            high: liveQuote.high ?? prev.high,
+            low: liveQuote.low ?? prev.low,
+            volume: liveQuote.volume ?? prev.volume,
+          }));
+        }
+      } catch {
+        // Keep static price
+      }
+    }, 15000);
 
     return () => clearInterval(interval);
-  }, [isLiveStreaming]);
+  }, [activeStock.symbol, latestPrice, marketStatus.isOpen]);
 
   const setActiveStock = (stock: Stock) => {
     setActiveStockState(stock);
@@ -737,6 +776,7 @@ export const TradingProvider: React.FC<{ children: ReactNode }> = ({ children })
         setIsLiveStreaming,
         latestPrice,
         priceFlash,
+        marketStatus,
         croppedTimeframePreview,
         setCroppedTimeframePreview,
         theme,
