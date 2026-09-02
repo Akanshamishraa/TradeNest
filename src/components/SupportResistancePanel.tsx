@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
 import { useTrading } from '../services/tradingStore';
-import { Shield, TrendingUp, TrendingDown, Plus, RefreshCw, Star, Trash2, Eye, EyeOff, AlertTriangle, Maximize2, Minimize2 } from 'lucide-react';
+import { Shield, TrendingUp, TrendingDown, Plus, RefreshCw, Star, Trash2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 
-interface SupportResistancePanelProps {
-  isExpanded?: boolean;
-  onToggleExpand?: () => void;
-}
-
-export const SupportResistancePanel: React.FC<SupportResistancePanelProps> = ({
-  isExpanded,
-  onToggleExpand
-}) => {
+export const SupportResistancePanel: React.FC = () => {
   const {
     activeStock,
     supportResistanceLevels,
@@ -70,36 +62,18 @@ export const SupportResistancePanel: React.FC<SupportResistancePanelProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {onToggleExpand && (
-            <button
-              onClick={onToggleExpand}
-              title={isExpanded ? 'Collapse panel to default width' : 'Expand panel (VS Code style)'}
-              className={`hidden md:flex items-center gap-1 p-1.5 rounded-lg border text-xs transition cursor-pointer ${
-                isExpanded
-                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : isLight 
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' 
-                  : 'bg-[#131722] hover:bg-[#2a2e39] text-gray-300 hover:text-white border-[#2a2e39]'
-              }`}
-            >
-              {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            </button>
-          )}
-
-          <button
-            onClick={resetAutoSRLevels}
-            title="Recalculate key levels from price action"
-            className={`flex items-center gap-1.5 ${
-              isLight
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                : 'bg-[#131722] hover:bg-[#2a2e39] text-gray-300 hover:text-white border-[#2a2e39]'
-            } px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition cursor-pointer active:scale-95`}
-          >
-            <RefreshCw className="w-3 h-3 text-blue-500" />
-            <span className="hidden sm:inline">Auto-Detect</span>
-          </button>
-        </div>
+        <button
+          onClick={resetAutoSRLevels}
+          title="Recalculate key levels from price action"
+          className={`flex items-center gap-1.5 ${
+            isLight
+              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+              : 'bg-[#131722] hover:bg-[#2a2e39] text-gray-300 hover:text-white border-[#2a2e39]'
+          } px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition cursor-pointer active:scale-95`}
+        >
+          <RefreshCw className="w-3 h-3 text-blue-500" />
+          <span className="hidden sm:inline">Auto-Detect</span>
+        </button>
       </div>
 
       {/* Proximity Summary Banner - Next Target & Floor */}
