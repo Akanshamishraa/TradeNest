@@ -1,10 +1,7 @@
-import YahooFinance from 'yahoo-finance2';
-
-const yahooFinance = new YahooFinance();
-
 // Helper to map symbol aliases to Yahoo Finance standard symbols
 const getYahooSymbol = (symbol) => {
-  const clean = symbol.toUpperCase().trim();
+  if (!symbol) return '^NSEI';
+  const clean = decodeURIComponent(symbol).toUpperCase().trim();
 
   // Known Index mappings
   if (clean === 'SENSEX' || clean === 'BSE:SENSEX' || clean === 'BSESN') return '^BSESN';
@@ -25,6 +22,14 @@ const getYahooSymbol = (symbol) => {
   const usStocks = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'AMZN', 'META'];
   if (usStocks.includes(clean)) return clean;
 
+  // Clean exchange prefixes
+  if (clean.startsWith('NSE:')) {
+    return `${clean.replace('NSE:', '')}.NS`;
+  }
+  if (clean.startsWith('BSE:')) {
+    return `${clean.replace('BSE:', '')}.BO`;
+  }
+
   // If already contains suffix
   if (clean.endsWith('.NS') || clean.endsWith('.BO') || clean.includes('=')) {
     return clean;
@@ -34,40 +39,7 @@ const getYahooSymbol = (symbol) => {
   return `${clean}.NS`;
 };
 
-// Calculate period start date based on range
-const getPeriodStart = (range) => {
-  const now = new Date();
-
-  switch (range) {
-    case '1d':
-    case '1D':
-      return new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
-    case '5d':
-    case '5D':
-      return new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
-    case '1mo':
-    case '1M':
-      return new Date(now.setMonth(now.getMonth() - 1));
-    case '3mo':
-    case '3M':
-      return new Date(now.setMonth(now.getMonth() - 3));
-    case '6mo':
-    case '6M':
-      return new Date(now.setMonth(now.getMonth() - 6));
-    case '1y':
-    case '1Y':
-      return new Date(now.setFullYear(now.getFullYear() - 1));
-    case '5y':
-    case '5Y':
-      return new Date(now.setFullYear(now.getFullYear() - 5));
-    case 'all':
-    case 'ALL':
-    case 'max':
-      return new Date('2000-01-01');
-    default:
-      return new Date(now.setMonth(now.getMonth() - 1));
-  }
-};
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
 /*
   GET CURRENT QUOTE
@@ -78,44 +50,63 @@ export const getQuote = async (req, res) => {
     const { symbol } = req.params;
     const ySymbol = getYahooSymbol(symbol);
 
-    const quote = await yahooFinance.quote(ySymbol);
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySymbol)}?range=1d&interval=1d`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT }
+    });
 
-    if (!quote) {
-      return res.status(404).json({
+    if (!response.ok) {
+      return res.status(response.status).json({
         success: false,
-        message: `Stock '${symbol}' not found on Yahoo Finance`
+        message: `Yahoo Finance API error for '${symbol}' (${response.statusText})`
       });
     }
 
-    const price = quote.regularMarketPrice || quote.bid || quote.ask || 0;
-    const prevClose = quote.regularMarketPreviousClose || price;
-    const change = quote.regularMarketChange ?? (price - prevClose);
-    const changePercent = quote.regularMarketChangePercent ?? (prevClose ? ((change / prevClose) * 100) : 0);
+    const json = await response.json();
+    const result = json?.chart?.result?.[0];
+
+    if (!result || !result.meta) {
+      return res.status(404).json({
+        success: false,
+        message: `Stock '${symbol}' not found`
+      });
+    }
+
+    const meta = result.meta;
+    const quoteData = result.indicators?.quote?.[0] || {};
+
+    const price = meta.regularMarketPrice || meta.chartPreviousClose || 0;
+    const prevClose = meta.chartPreviousClose || price;
+    const change = price - prevClose;
+    const changePercent = prevClose ? ((change / prevClose) * 100) : 0;
+
+    const latestIdx = (quoteData.close && quoteData.close.length > 0) ? quoteData.close.length - 1 : 0;
+    const open = quoteData.open?.[latestIdx] || meta.regularMarketPrice || price;
+    const high = meta.regularMarketDayHigh || quoteData.high?.[latestIdx] || price;
+    const low = meta.regularMarketDayLow || quoteData.low?.[latestIdx] || price;
+    const volume = meta.regularMarketVolume || quoteData.volume?.[latestIdx] || 0;
 
     res.json({
       success: true,
       data: {
         symbol: symbol.toUpperCase(),
-        yahooSymbol: quote.symbol,
-        name: quote.longName || quote.shortName || symbol,
-        exchange: quote.exchange || 'NSE',
-        price,
-        previousClose: prevClose,
-        change,
-        changePercent,
-        open: quote.regularMarketOpen || price,
-        high: quote.regularMarketDayHigh || price,
-        low: quote.regularMarketDayLow || price,
-        marketCap: quote.marketCap ? (
-          (quote.currency === 'USD' || !ySymbol.endsWith('.NS'))
-            ? `$${(quote.marketCap / 1e12).toFixed(1)}T`
-            : (quote.marketCap >= 1e12 ? `₹${(quote.marketCap / 1e12).toFixed(1)}T` : `₹${(quote.marketCap / 1e7).toFixed(1)} Cr`)
-        ) : 'N/A',
-        peRatio: quote.trailingPE || quote.forwardPE || 0,
-        fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh || price * 1.2,
-        fiftyTwoWeekLow: quote.fiftyTwoWeekLow || price * 0.8,
-        currency: quote.currency === 'USD' || !ySymbol.endsWith('.NS') ? '$' : '₹',
-        marketState: quote.marketState || 'REGULAR'
+        yahooSymbol: meta.symbol || ySymbol,
+        name: meta.longName || meta.shortName || symbol,
+        exchange: meta.exchangeName || 'NSE',
+        price: parseFloat(price.toFixed(2)),
+        previousClose: parseFloat(prevClose.toFixed(2)),
+        change: parseFloat(change.toFixed(2)),
+        changePercent: parseFloat(changePercent.toFixed(2)),
+        open: parseFloat(open.toFixed(2)),
+        high: parseFloat(high.toFixed(2)),
+        low: parseFloat(low.toFixed(2)),
+        volume,
+        marketCap: 'N/A',
+        peRatio: 0,
+        fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ? parseFloat(meta.fiftyTwoWeekHigh.toFixed(2)) : price * 1.2,
+        fiftyTwoWeekLow: meta.fiftyTwoWeekLow ? parseFloat(meta.fiftyTwoWeekLow.toFixed(2)) : price * 0.8,
+        currency: meta.currency === 'USD' ? '$' : '₹',
+        marketState: 'REGULAR'
       }
     });
   } catch (error) {
@@ -141,18 +132,41 @@ export const getHistoricalData = async (req, res) => {
     } = req.query;
 
     const ySymbol = getYahooSymbol(symbol);
-    const startDate = getPeriodStart(range);
 
-    // Determine appropriate interval if not explicitly provided
+    // Map range to Yahoo Finance standard ranges
+    const validRanges = {
+      '1d': '1d',
+      '1D': '1d',
+      '5d': '5d',
+      '5D': '5d',
+      '1m': '1mo',
+      '1M': '1mo',
+      '1mo': '1mo',
+      '3m': '3mo',
+      '3M': '3mo',
+      '3mo': '3mo',
+      '6m': '6mo',
+      '6M': '6mo',
+      '6mo': '6mo',
+      '1y': '1y',
+      '1Y': '1y',
+      '5y': '5y',
+      '5Y': '5y',
+      'all': 'max',
+      'ALL': 'max',
+      'max': 'max'
+    };
+    const yahooRange = validRanges[range] || '1mo';
+
+    // Map interval to Yahoo Finance standard intervals
     let effectiveInterval = interval;
     if (!req.query.interval) {
-      if (range.toLowerCase() === '1d') effectiveInterval = '1m';
-      else if (range.toLowerCase() === '5d') effectiveInterval = '5m';
-      else if (range.toLowerCase() === '1mo' || range.toLowerCase() === '1m') effectiveInterval = '60m';
+      if (yahooRange === '1d') effectiveInterval = '1m';
+      else if (yahooRange === '5d') effectiveInterval = '5m';
+      else if (yahooRange === '1mo') effectiveInterval = '60m';
       else effectiveInterval = '1d';
     }
 
-    // Map interval to valid yahoo interval
     const validIntervals = {
       '1m': '1m',
       '2m': '2m',
@@ -167,45 +181,62 @@ export const getHistoricalData = async (req, res) => {
     };
     const yahooInterval = validIntervals[effectiveInterval] || '1d';
 
-    // Fetch chart data from Yahoo Finance
-    const chartResult = await yahooFinance.chart(ySymbol, {
-      period1: startDate,
-      interval: yahooInterval
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySymbol)}?range=${yahooRange}&interval=${yahooInterval}`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT }
     });
 
-    if (!chartResult || !chartResult.quotes || chartResult.quotes.length === 0) {
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        message: `Yahoo Finance API error (${response.statusText})`
+      });
+    }
+
+    const json = await response.json();
+    const result = json?.chart?.result?.[0];
+
+    if (!result || !result.timestamp || result.timestamp.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'No historical chart data returned'
       });
     }
 
-    const isIntraday = ['1m', '5m', '15m', '30m', '60m', '1h'].includes(effectiveInterval);
+    const timestamps = result.timestamp;
+    const quotes = result.indicators?.quote?.[0] || {};
+    const isIntraday = ['1m', '2m', '5m', '15m', '30m', '60m', '1h'].includes(yahooInterval);
 
-    // Format into Lightweight Charts OHLC candle objects
-    const candles = chartResult.quotes
-      .filter(item => item.open !== null && item.close !== null && !isNaN(item.open) && !isNaN(item.close))
-      .map(item => {
-        const d = new Date(item.date);
-        // For intraday, Lightweight Charts requires UNIX timestamp in seconds
-        const timeVal = isIntraday ? Math.floor(d.getTime() / 1000) : d.toISOString().split('T')[0];
+    const candles = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const open = quotes.open?.[i];
+      const high = quotes.high?.[i];
+      const low = quotes.low?.[i];
+      const close = quotes.close?.[i];
+      const volume = quotes.volume?.[i] || 0;
 
-        return {
+      if (open != null && high != null && low != null && close != null && !isNaN(open) && !isNaN(close)) {
+        const timeVal = isIntraday
+          ? timestamps[i]
+          : new Date(timestamps[i] * 1000).toISOString().split('T')[0];
+
+        candles.push({
           time: timeVal,
-          open: parseFloat(item.open.toFixed(2)),
-          high: parseFloat(item.high.toFixed(2)),
-          low: parseFloat(item.low.toFixed(2)),
-          close: parseFloat(item.close.toFixed(2)),
-          volume: item.volume || 0
-        };
-      });
+          open: parseFloat(open.toFixed(2)),
+          high: parseFloat(high.toFixed(2)),
+          low: parseFloat(low.toFixed(2)),
+          close: parseFloat(close.toFixed(2)),
+          volume: volume || 0
+        });
+      }
+    }
 
     res.json({
       success: true,
       symbol: symbol.toUpperCase(),
       yahooSymbol: ySymbol,
-      range,
-      interval,
+      range: yahooRange,
+      interval: yahooInterval,
       count: candles.length,
       data: candles
     });
@@ -233,15 +264,22 @@ export const searchStocks = async (req, res) => {
       });
     }
 
-    const result = await yahooFinance.search(q);
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=10`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT }
+    });
 
-    const stocks = (result.quotes || [])
-      .map(item => ({
-        symbol: item.symbol,
-        name: item.longname || item.shortname || item.symbol,
-        exchange: item.exchange || 'NSE',
-        type: item.quoteType || 'EQUITY'
-      }));
+    if (!response.ok) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const json = await response.json();
+    const stocks = (json.quotes || []).map(item => ({
+      symbol: item.symbol,
+      name: item.longname || item.shortname || item.symbol,
+      exchange: item.exchange || 'NSE',
+      type: item.quoteType || 'EQUITY'
+    }));
 
     res.json({
       success: true,
