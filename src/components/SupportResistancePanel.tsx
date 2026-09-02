@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { useTrading } from '../services/tradingStore';
-import { Shield, TrendingUp, TrendingDown, Plus, RefreshCw, Star, Trash2, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Shield, TrendingUp, TrendingDown, Plus, RefreshCw, Star, Trash2, Eye, EyeOff, AlertTriangle, Maximize2, Minimize2 } from 'lucide-react';
 
-export const SupportResistancePanel: React.FC = () => {
+interface SupportResistancePanelProps {
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+}
+
+export const SupportResistancePanel: React.FC<SupportResistancePanelProps> = ({
+  isExpanded,
+  onToggleExpand
+}) => {
   const {
     activeStock,
     supportResistanceLevels,
@@ -24,30 +32,32 @@ export const SupportResistancePanel: React.FC = () => {
     const p = parseFloat(customPrice);
     if (isNaN(p) || p <= 0) return;
 
-    addManualSRLevel(p, customType, customLabel || undefined);
+    addManualSRLevel(p, customType, customLabel.trim() || undefined);
     setCustomPrice('');
     setCustomLabel('');
   };
 
-  const resistanceLevels = supportResistanceLevels.filter(l => l.type === 'resistance');
-  const supportLevels = supportResistanceLevels.filter(l => l.type === 'support');
+  const resistanceLevels = supportResistanceLevels
+    .filter(lvl => lvl.type === 'resistance')
+    .sort((a, b) => a.price - b.price);
 
-  // Find closest resistance & support
-  const nextResistance = resistanceLevels
-    .filter(r => r.price > latestPrice)
-    .sort((a, b) => a.price - b.price)[0];
+  const supportLevels = supportResistanceLevels
+    .filter(lvl => lvl.type === 'support')
+    .sort((a, b) => b.price - a.price);
 
-  const nextSupport = supportLevels
-    .filter(s => s.price < latestPrice)
-    .sort((a, b) => b.price - a.price)[0];
+  const nextResistance = resistanceLevels.find(l => l.price > latestPrice && l.active);
+  const nextSupport = supportLevels.find(l => l.price < latestPrice && l.active);
 
   return (
-    <div className={`${isLight ? 'bg-white border-slate-200 text-slate-800 shadow-xs' : 'bg-[#1e222d] border-[#2a2e39] text-[#d1d4dc] shadow-lg'} border rounded-xl p-4 flex flex-col gap-4 text-xs`}>
-      
+    <div className={`p-3 rounded-2xl border transition-all ${
+      isLight 
+        ? 'bg-white/95 border-slate-200/90 shadow-sm' 
+        : 'bg-[#181c27]/95 border-[#2a2e39] shadow-md'
+    } backdrop-blur-md space-y-3`}>
       {/* Header */}
-      <div className={`flex items-center justify-between border-b ${isLight ? 'border-slate-200' : 'border-[#2a2e39]'} pb-3`}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
             <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
@@ -60,18 +70,36 @@ export const SupportResistancePanel: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={resetAutoSRLevels}
-          title="Recalculate key levels from price action"
-          className={`flex items-center gap-1.5 ${
-            isLight
-              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-              : 'bg-[#131722] hover:bg-[#2a2e39] text-gray-300 hover:text-white border-[#2a2e39]'
-          } px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition cursor-pointer active:scale-95`}
-        >
-          <RefreshCw className="w-3 h-3 text-blue-500" />
-          <span>Auto-Detect</span>
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onToggleExpand && (
+            <button
+              onClick={onToggleExpand}
+              title={isExpanded ? 'Collapse panel to default width' : 'Expand panel (VS Code style)'}
+              className={`hidden md:flex items-center gap-1 p-1.5 rounded-lg border text-xs transition cursor-pointer ${
+                isExpanded
+                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : isLight 
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' 
+                  : 'bg-[#131722] hover:bg-[#2a2e39] text-gray-300 hover:text-white border-[#2a2e39]'
+              }`}
+            >
+              {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
+          <button
+            onClick={resetAutoSRLevels}
+            title="Recalculate key levels from price action"
+            className={`flex items-center gap-1.5 ${
+              isLight
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                : 'bg-[#131722] hover:bg-[#2a2e39] text-gray-300 hover:text-white border-[#2a2e39]'
+            } px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition cursor-pointer active:scale-95`}
+          >
+            <RefreshCw className="w-3 h-3 text-blue-500" />
+            <span className="hidden sm:inline">Auto-Detect</span>
+          </button>
+        </div>
       </div>
 
       {/* Proximity Summary Banner - Next Target & Floor */}
@@ -87,12 +115,12 @@ export const SupportResistancePanel: React.FC = () => {
             <span className="truncate">Next Resistance</span>
           </div>
 
-          <div className="flex items-center justify-between mt-1 gap-1">
-            <span className={`font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'} text-[15px] truncate`}>
+          <div className="flex items-baseline justify-between mt-1 gap-1 flex-wrap">
+            <span className={`font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'} text-[13px] sm:text-[14px] whitespace-nowrap`}>
               {nextResistance ? `${activeStock.currency}${nextResistance.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'ATH Breakout'}
             </span>
             {nextResistance && (
-              <span className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 shrink-0">
+              <span className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1 py-0.2 rounded border border-rose-500/20 shrink-0 whitespace-nowrap">
                 +{(((nextResistance.price - latestPrice) / latestPrice) * 100).toFixed(2)}%
               </span>
             )}
@@ -110,12 +138,12 @@ export const SupportResistancePanel: React.FC = () => {
             <span className="truncate">Next Support</span>
           </div>
 
-          <div className="flex items-center justify-between mt-1 gap-1">
-            <span className={`font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'} text-[15px] truncate`}>
+          <div className="flex items-baseline justify-between mt-1 gap-1 flex-wrap">
+            <span className={`font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'} text-[13px] sm:text-[14px] whitespace-nowrap`}>
               {nextSupport ? `${activeStock.currency}${nextSupport.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Lowest Base'}
             </span>
             {nextSupport && (
-              <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+              <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20 shrink-0 whitespace-nowrap">
                 -{(((latestPrice - nextSupport.price) / latestPrice) * 100).toFixed(2)}%
               </span>
             )}

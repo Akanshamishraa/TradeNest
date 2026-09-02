@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TradingProvider } from './services/tradingStore';
 import { Navbar } from './components/Navbar';
 import { StockDropdownModal } from './components/StockDropdownModal';
@@ -18,6 +18,58 @@ function AppContent() {
 
   const [isStockSearchOpen, setIsStockSearchOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<'chart' | 'sr' | 'overview'>('chart');
+
+  // VS Code style resizable panel width state (default 340px, min 300px, max 600px)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('tradenest_sidebar_width');
+    return saved ? Math.max(300, Math.min(600, parseInt(saved, 10))) : 340;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth >= 290 && newWidth <= 600) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      localStorage.setItem('tradenest_sidebar_width', sidebarWidth.toString());
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, sidebarWidth]);
+
+  const toggleExpand = () => {
+    setSidebarWidth(prev => {
+      const next = prev > 360 ? 320 : 450;
+      localStorage.setItem('tradenest_sidebar_width', next.toString());
+      return next;
+    });
+  };
 
   // If user is not logged in and not in guest mode, show the TradingView Auth & News Landing page
   if (!isAuthenticated) {
@@ -42,10 +94,32 @@ function AppContent() {
           <TimeframeSelector />
         </main>
 
+        {/* VS Code Style Draggable Resizer Divider (Desktop only) */}
+        <div
+          onMouseDown={startResizing}
+          onDoubleClick={toggleExpand}
+          className={`hidden md:flex w-2.5 -ml-1.5 z-30 cursor-col-resize items-center justify-center group transition-all select-none relative ${
+            isResizing
+              ? 'bg-blue-500 shadow-md shadow-blue-500/50'
+              : 'hover:bg-blue-500/60 bg-transparent'
+          }`}
+          title="Drag to resize Support & Resistance panel | Double-click to toggle expand/collapse"
+        >
+          <div className={`w-[2px] h-10 rounded-full transition-colors ${
+            isResizing ? 'bg-white' : 'bg-transparent group-hover:bg-white'
+          }`} />
+        </div>
+
         {/* Right Multi-Panel Sidebar (Desktop side-by-side OR Mobile full tab view) */}
-        <aside className={`${mobileTab !== 'chart' ? 'flex' : 'hidden md:flex'} flex-col w-full md:w-64 lg:w-72 ${isLight ? 'bg-slate-100/70 md:border-l border-slate-200' : 'bg-[#1e222d]'} h-full min-h-0 overflow-y-auto p-2 space-y-2.5 shrink-0`}>
+        <aside 
+          className={`${mobileTab !== 'chart' ? 'flex w-full' : 'hidden md:flex'} flex-col ${isLight ? 'bg-slate-100/70 md:border-l border-slate-200' : 'bg-[#1e222d]'} h-full min-h-0 overflow-y-auto p-2 space-y-2.5 shrink-0`}
+          style={{ width: isDesktop ? `${sidebarWidth}px` : undefined }}
+        >
           <div className={`${mobileTab === 'sr' ? 'block' : 'hidden md:block'}`}>
-            <SupportResistancePanel />
+            <SupportResistancePanel 
+              isExpanded={sidebarWidth > 360} 
+              onToggleExpand={toggleExpand} 
+            />
           </div>
 
           <div className={`${mobileTab === 'overview' ? 'block' : 'hidden md:block'}`}>
